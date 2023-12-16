@@ -12,11 +12,10 @@ from django.contrib.auth import authenticate
 
 class LoginView(APIView):
     def post(self, request):
-        serializer = UserSerializer(data=request.data)
-        if serializer.is_valid():
-            username = serializer.validated_data["username"]
-            password = serializer.validated_data["password"]
+        username = request.data.get('username')
+        password = request.data.get('password')
 
+        if username and password:
             user = authenticate(username=username, password=password)
 
             if user:
@@ -24,4 +23,4 @@ class LoginView(APIView):
                 return Response({'token': token.key}, status=status.HTTP_200_OK)
             return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
 
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'error': 'Invalid data provided'}, status=status.HTTP_400_BAD_REQUEST)
