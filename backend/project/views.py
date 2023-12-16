@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from rest_framework.views import APIView
-from project.models import Project
-from project.serializers import ProjectSerializer
+from project.models import Project, Message
+from project.serializers import ProjectSerializer, MessageSerializer
 from rest_framework.response import Response
 from rest_framework import status
 from django.http import Http404
@@ -51,46 +51,41 @@ class ProjectDetail(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class GitubProjects(APIView):
+class MessageView(APIView):
     def get(self, request):
-        repos_url = "https://api.github.com/users/RonG305/repos"
+        messages = Message.objects.all()
+        serializer = MessageSerializer(messages, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
+    def post(self, request):
+        serializer = MessageSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class MessageDetail(APIView):
+    def get_object(self, pk):
         try:
-            response = requests.get(repos_url)
-            if response.status_code == 200:
-                repos_data = response.json()
-                # Format date and time strings for each repository
-                for repo in repos_data:
-                    repo['created_at'] = self.format_datetime(
-                        repo['created_at'])
-                    repo['updated_at'] = self.format_datetime(
-                        repo['updated_at'])
-                    repo['pushed_at'] = self.format_datetime(repo['pushed_at'])
-                return Response(repos_data)
-            else:
-                return Response({"message": "Failed to fetch repositories"}, status=response.status_code)
-        except requests.RequestException as e:
-            return Response({"message": f"Error fetching repositories: {e}"}, status=500)
+            return Message.objects.get(pk=pk)
+        except Message.DoesNotExist:
+            raise Http404
 
-    def format_datetime(self, datetime_str):
-        # Parse the string to datetime object
-        parsed_datetime = datetime.strptime(datetime_str, "%Y-%m-%dT%H:%M:%SZ")
-        # Format the datetime as per your requirement
-        formatted_datetime = parsed_datetime.strftime("%B %d, %Y")
-        return formatted_datetime
+    def get(self, request, pk):
+        message = self.get_object(pk)
+        serializer = MessageSerializer(message)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
+    def put(self, request, pk):
+        message = self.get_object(pk)
+        serializer = MessageSerializer(message, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-class GitubView(APIView):
-    def get(self, request, pk):  # Handle 'pk' parameter for project ID
-        # Example GitHub API URL
-        repos_url = f"https://api.github.com/repositories/{pk}"
-
-        try:
-            response = requests.get(repos_url)
-            if response.status_code == 200:
-                repo_data = response.json()
-                return Response(repo_data)
-            else:
-                return Response({"message": "Failed to fetch repository"}, status=response.status_code)
-        except requests.RequestException as e:
-            return Response({"message": f"Error fetching repository: {e}"}, status=500)
+    def delete(self, request, pk):
+        message = self.get_object(pk)
+        message.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
