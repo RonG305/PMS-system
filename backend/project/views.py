@@ -14,8 +14,13 @@ from datetime import datetime
 class ProjectView(APIView):
     def get(self, request):
         projects = Project.objects.all()
+        projects_count = Project.objects.all().count()
         serializer = ProjectSerializer(projects, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        response_data = {
+            'projects': serializer.data,
+            'projects_count': projects_count
+        }
+        return Response(response_data, status=status.HTTP_200_OK)
 
     def post(self, request):
         serializer = ProjectSerializer(data=request.data)
